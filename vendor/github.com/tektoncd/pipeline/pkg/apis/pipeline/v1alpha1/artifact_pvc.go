@@ -27,13 +27,14 @@ import (
 
 var (
 	pvcDir        = "/pvc"
-	bashNoopImage = flag.String("bash-noop-image", "override-with-bash-noop:latest", "The container image containing bash shell")
+	BashNoopImage = flag.String("bash-noop-image", "override-with-bash-noop:latest", "The container image containing bash shell")
 )
 
 // ArtifactPVC represents the pvc created by the pipelinerun
 // for artifacts temporary storage
 type ArtifactPVC struct {
-	Name string
+	Name                  string
+	PersistentVolumeClaim *corev1.PersistentVolumeClaim
 }
 
 // GetType returns the type of the artifact storage
@@ -46,39 +47,40 @@ func (p *ArtifactPVC) StorageBasePath(pr *PipelineRun) string {
 	return pvcDir
 }
 
-// GetCopyFromContainerSpec returns a container used to download artifacts from temporary storage
-func (p *ArtifactPVC) GetCopyFromContainerSpec(name, sourcePath, destinationPath string) []corev1.Container {
+// GetCopyFromStorageToContainerSpec returns a container used to download artifacts from temporary storage
+func (p *ArtifactPVC) GetCopyFromStorageToContainerSpec(name, sourcePath, destinationPath string) []corev1.Container {
 	return []corev1.Container{{
 		Name:    names.SimpleNameGenerator.RestrictLengthWithRandomSuffix(fmt.Sprintf("source-copy-%s", name)),
-		Image:   *bashNoopImage,
+		Image:   *BashNoopImage,
 		Command: []string{"/ko-app/bash"},
 		Args:    []string{"-args", strings.Join([]string{"cp", "-r", fmt.Sprintf("%s/.", sourcePath), destinationPath}, " ")},
 	}}
 }
 
-// GetCopyToContainerSpec returns a container used to upload artifacts for temporary storage
-func (p *ArtifactPVC) GetCopyToContainerSpec(name, sourcePath, destinationPath string) []corev1.Container {
+// GetCopyToStorageFromContainerSpec returns a container used to upload artifacts for temporary storage
+func (p *ArtifactPVC) GetCopyToStorageFromContainerSpec(name, sourcePath, destinationPath string) []corev1.Container {
 	return []corev1.Container{{
 		Name:    names.SimpleNameGenerator.RestrictLengthWithRandomSuffix(fmt.Sprintf("source-mkdir-%s", name)),
-		Image:   *bashNoopImage,
+		Image:   *BashNoopImage,
 		Command: []string{"/ko-app/bash"},
 		Args: []string{
 
 			"-args", strings.Join([]string{"mkdir", "-p", destinationPath}, " "),
 		},
-		VolumeMounts: []corev1.VolumeMount{getPvcMount(p.Name)},
+		VolumeMounts: []corev1.VolumeMount{GetPvcMount(p.Name)},
 	}, {
 		Name:    names.SimpleNameGenerator.RestrictLengthWithRandomSuffix(fmt.Sprintf("source-copy-%s", name)),
-		Image:   *bashNoopImage,
+		Image:   *BashNoopImage,
 		Command: []string{"/ko-app/bash"},
 		Args: []string{
 			"-args", strings.Join([]string{"cp", "-r", fmt.Sprintf("%s/.", sourcePath), destinationPath}, " "),
 		},
-		VolumeMounts: []corev1.VolumeMount{getPvcMount(p.Name)},
+		VolumeMounts: []corev1.VolumeMount{GetPvcMount(p.Name)},
 	}}
 }
 
-func getPvcMount(name string) corev1.VolumeMount {
+// GetPvcMount returns a mounting of the volume with the mount path /pvc
+func GetPvcMount(name string) corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      name,   // taskrun pvc name
 		MountPath: pvcDir, // nothing should be mounted here
@@ -89,7 +91,7 @@ func getPvcMount(name string) corev1.VolumeMount {
 func CreateDirContainer(name, destinationPath string) corev1.Container {
 	return corev1.Container{
 		Name:    names.SimpleNameGenerator.RestrictLengthWithRandomSuffix(fmt.Sprintf("create-dir-%s", name)),
-		Image:   *bashNoopImage,
+		Image:   *BashNoopImage,
 		Command: []string{"/ko-app/bash"},
 		Args:    []string{"-args", strings.Join([]string{"mkdir", "-p", destinationPath}, " ")},
 	}

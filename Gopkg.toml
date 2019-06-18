@@ -35,7 +35,8 @@
 
 [[constraint]]
   name = "github.com/tektoncd/pipeline"
-  branch = "master"
+  branch = "cloud-event-pull-request"
+  source = "ssh://github.com/afrittoli/pipeline"
 
 [[override]]
   name = "k8s.io/client-go"

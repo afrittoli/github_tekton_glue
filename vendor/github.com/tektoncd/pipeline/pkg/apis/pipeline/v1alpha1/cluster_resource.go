@@ -20,11 +20,11 @@ import (
 	b64 "encoding/base64"
 	"encoding/json"
 	"flag"
-	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/tektoncd/pipeline/pkg/names"
+	"golang.org/x/xerrors"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -59,7 +59,7 @@ type ClusterResource struct {
 // NewClusterResource create a new k8s cluster resource to pass to a pipeline task
 func NewClusterResource(r *PipelineResource) (*ClusterResource, error) {
 	if r.Spec.Type != PipelineResourceTypeCluster {
-		return nil, fmt.Errorf("ClusterResource: Cannot create a Cluster resource from a %s Pipeline Resource", r.Spec.Type)
+		return nil, xerrors.Errorf("ClusterResource: Cannot create a Cluster resource from a %s Pipeline Resource", r.Spec.Type)
 	}
 	clusterResource := ClusterResource{
 		Type: r.Spec.Type,
@@ -118,11 +118,8 @@ func (s *ClusterResource) GetURL() string {
 	return s.URL
 }
 
-// GetParams returns the resoruce params
+// GetParams returns the resource params
 func (s ClusterResource) GetParams() []Param { return []Param{} }
-
-// GetSecrets returns an array with field name and the corresponding secret to populate it
-func (s ClusterResource) GetSecrets() []SecretParam { return s.Secrets }
 
 // Replacements is used for template replacement on a ClusterResource inside of a Taskrun.
 func (s *ClusterResource) Replacements() map[string]string {

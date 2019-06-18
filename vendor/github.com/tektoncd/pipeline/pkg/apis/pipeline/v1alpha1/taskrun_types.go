@@ -32,7 +32,6 @@ var _ apis.Defaultable = (*TaskRun)(nil)
 
 // TaskRunSpec defines the desired state of TaskRun
 type TaskRunSpec struct {
-	Trigger TaskTrigger `json:"trigger"`
 	// +optional
 	Inputs TaskRunInputs `json:"inputs,omitempty"`
 	// +optional
@@ -48,7 +47,7 @@ type TaskRunSpec struct {
 	TaskSpec *TaskSpec `json:"taskSpec,omitempty"`
 	// Used for cancelling a taskrun (and maybe more later on)
 	// +optional
-	Status TaskRunSpecStatus
+	Status TaskRunSpecStatus `json:"status,omitempty"`
 	// Time after which the build times out. Defaults to 10 minutes.
 	// Specified build timeout should be less than 24h.
 	// Refer Go's ParseDuration documentation for expected format: https://golang.org/pkg/time/#ParseDuration
@@ -84,34 +83,27 @@ type TaskRunInputs struct {
 	Params []Param `json:"params,omitempty"`
 }
 
+// TaskResourceBinding points to the PipelineResource that
+// will be used for the Task input or output called Name. The optional Path field
+// corresponds to a path on disk at which the Resource can be found (used when providing
+// the resource via mounted volume, overriding the default logic to fetch the Resource).
+type TaskResourceBinding struct {
+	Name string `json:"name"`
+	// no more than one of the ResourceRef and ResourceSpec may be specified.
+	// +optional
+	ResourceRef PipelineResourceRef `json:"resourceRef,omitempty"`
+	// +optional
+	ResourceSpec *PipelineResourceSpec `json:"resourceSpec,omitempty"`
+	// +optional
+	Paths []string `json:"paths,omitempty"`
+}
+
 // TaskRunOutputs holds the output values that this task was invoked with.
 type TaskRunOutputs struct {
 	// +optional
 	Resources []TaskResourceBinding `json:"resources,omitempty"`
 	// +optional
 	Params []Param `json:"params,omitempty"`
-}
-
-// TaskTriggerType indicates the mechanism by which this TaskRun was created.
-type TaskTriggerType string
-
-const (
-	// TaskTriggerTypeManual indicates that this TaskRun was invoked manually by a user.
-	TaskTriggerTypeManual TaskTriggerType = "manual"
-
-	// TaskTriggerTypePipelineRun indicates that this TaskRun was created by a controller
-	// attempting to realize a PipelineRun. In this case the `name` will refer to the name
-	// of the PipelineRun.
-	TaskTriggerTypePipelineRun TaskTriggerType = "pipelineRun"
-)
-
-// TaskTrigger describes what triggered this Task to run. It could be triggered manually,
-// or it may have been part of a PipelineRun in which case this ref would refer
-// to the corresponding PipelineRun.
-type TaskTrigger struct {
-	Type TaskTriggerType `json:"type"`
-	// +optional
-	Name string `json:"name,omitempty"`
 }
 
 var taskRunCondSet = apis.NewBatchConditionSet()
@@ -138,15 +130,32 @@ type TaskRunStatus struct {
 	// Steps describes the state of each build step container.
 	// +optional
 	Steps []StepState `json:"steps,omitempty"`
+
+	// CloudEvents describe the state of each cloud event requested via a
+	// CloudEventResource.
+	// +optional
+	CloudEvents []CloudEventDelivery `json:"cloudEvents,omitempty"`
+
+	// RetriesStatus contains the history of TaskRunStatus in case of a retry in order to keep record of failures.
+	// All TaskRunStatus stored in RetriesStatus will have no date within the RetriesStatus as is redundant.
+	// +optional
+	RetriesStatus []TaskRunStatus `json:"retriesStatus,omitempty"`
+	// Results from Resources built during the taskRun. currently includes
+	// the digest of build container images
+	// optional
+	ResourcesResult []PipelineResourceResult `json:"resourcesResult,omitempty"`
 }
 
 // GetCondition returns the Condition matching the given type.
 func (tr *TaskRunStatus) GetCondition(t apis.ConditionType) *apis.Condition {
 	return taskRunCondSet.Manage(tr).GetCondition(t)
 }
+
+// InitializeConditions will set all conditions in taskRunCondSet to unknown for the TaskRun
+// and set the started time to the current time
 func (tr *TaskRunStatus) InitializeConditions() {
 	if tr.StartTime.IsZero() {
-		tr.StartTime = &metav1.Time{time.Now()}
+		tr.StartTime = &metav1.Time{Time: time.Now()}
 	}
 	taskRunCondSet.Manage(tr).InitializeConditions()
 }
@@ -159,15 +168,73 @@ func (tr *TaskRunStatus) SetCondition(newCond *apis.Condition) {
 	}
 }
 
+// InitializeCloudEvents initializes the CloudEvents part of the TaskRunStatus
+// from a list of event targets
+func (tr *TaskRunStatus) InitializeCloudEvents(targets []string) {
+	if targets != nil {
+		initialState := CloudEventDeliveryState{
+			Condition: CloudEventConditionUnknown,
+			RetryCount: 0,
+		}
+		events := make([]CloudEventDelivery, len(targets))
+		for idx, target := range targets {
+			events[idx] = CloudEventDelivery{
+				Target: target,
+				Status: initialState,
+			}
+		}
+		tr.CloudEvents = events
+	}
+}
+
 // StepState reports the results of running a step in the Task.
 type StepState struct {
 	corev1.ContainerState
+	Name string `json:"name,omitempty"`
+}
+
+// CloudEventDelivery is the target of a cloud event along with the state of
+// delivery.
+type CloudEventDelivery struct {
+	// Target points to an addressable
+	Target string `json:"target,omitempty"`
+	Status CloudEventDeliveryState `json:"status,omitempty"`
+}
+
+// CloudEventCondition is a string that represents the condition of the event.
+type CloudEventCondition string
+
+const (
+	// CloudEventConditionUnknown means that the condition for the event to be
+	// triggered was not met yet, or we don't know the state yet.
+	CloudEventConditionUnknown CloudEventCondition = "Unknown"
+	// CloudEventConditionSent means that the event was sent successfully
+	CloudEventConditionSent CloudEventCondition = "Sent"
+	// CloudEventConditionFailed means that there was one or more attempts to
+	// send the event, and none was successful so far.
+	CloudEventConditionFailed CloudEventCondition = "Failed"
+)
+
+// CloudEventDeliveryState reports the state of a cloud event to be sent.
+type CloudEventDeliveryState struct {
+	// Current status
+	Condition CloudEventCondition `json:"condition,omitempty"`
+	// SentAt is the time at which the last attempt to send the event was made
+	// +optional
+	SentAt *metav1.Time `json:"sentAt,omitempty"`
+	// Error is the text of error (if any)
+	Error string `json:"message"`
+	// RetryCount is the number of attempts of sending the cloud event
+	RetryCount int32 `json:"retryCount"`
 }
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// TaskRun is the Schema for the taskruns API
+// TaskRun represents a single execution of a Task. TaskRuns are how the steps
+// specified in a Task are executed; they specify the parameters and resources
+// used to run the steps in a Task.
+//
 // +k8s:openapi-gen=true
 type TaskRun struct {
 	metav1.TypeMeta `json:",inline"`
@@ -213,7 +280,7 @@ func (tr *TaskRun) GetPipelineRunPVCName() string {
 	return ""
 }
 
-// HasPipeluneRunOwnerReference returns true of TaskRun has
+// HasPipelineRunOwnerReference returns true of TaskRun has
 // owner reference of type PipelineRun
 func (tr *TaskRun) HasPipelineRunOwnerReference() bool {
 	for _, ref := range tr.GetOwnerReferences() {
@@ -227,6 +294,16 @@ func (tr *TaskRun) HasPipelineRunOwnerReference() bool {
 // IsDone returns true if the TaskRun's status indicates that it is done.
 func (tr *TaskRun) IsDone() bool {
 	return !tr.Status.GetCondition(apis.ConditionSucceeded).IsUnknown()
+}
+
+// HasStarted function check whether taskrun has valid start time set in its status
+func (tr *TaskRun) HasStarted() bool {
+	return tr.Status.StartTime != nil && !tr.Status.StartTime.IsZero()
+}
+
+// IsSuccessful returns true if the TaskRun's status indicates that it is done.
+func (tr *TaskRun) IsSuccessful() bool {
+	return tr.Status.GetCondition(apis.ConditionSucceeded).IsTrue()
 }
 
 // IsCancelled returns true if the TaskRun's spec status is set to Cancelled state

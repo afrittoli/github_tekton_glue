@@ -39,23 +39,22 @@ var (
 
 // PipelineRunSpec defines the desired state of PipelineRun
 type PipelineRunSpec struct {
-	PipelineRef PipelineRef     `json:"pipelineRef"`
-	Trigger     PipelineTrigger `json:"trigger"`
+	PipelineRef PipelineRef `json:"pipelineRef"`
 	// Resources is a list of bindings specifying which actual instances of
 	// PipelineResources to use for the resources the Pipeline has declared
 	// it needs.
-	Resources []PipelineResourceBinding `json:"resources"`
+	Resources []PipelineResourceBinding `json:"resources,omitempty"`
 	// Params is a list of parameter names and values.
-	Params []Param `json:"params"`
+	Params []Param `json:"params,omitempty"`
 	// +optional
 	ServiceAccount string `json:"serviceAccount"`
 	// +optional
 	Results *Results `json:"results,omitempty"`
 	// Used for cancelling a pipelinerun (and maybe more later on)
 	// +optional
-	Status PipelineRunSpecStatus
+	Status PipelineRunSpecStatus `json:"status,omitempty"`
 	// Time after which the Pipeline times out. Defaults to never.
-	// Refer Go's ParseDuration documentation for expected format: https://golang.org/pkg/time/#ParseDuration
+	// Refer to Go's ParseDuration documentation for expected format: https://golang.org/pkg/time/#ParseDuration
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 	// NodeSelector is a selector which must be true for the pod to fit on a node.
@@ -83,7 +82,7 @@ const (
 // PipelineResourceRef can be used to refer to a specific instance of a Resource
 type PipelineResourceRef struct {
 	// Name of the referent; More info: http://kubernetes.io/docs/user-guide/identifiers#names
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 	// API version of the referent
 	// +optional
 	APIVersion string `json:"apiVersion,omitempty"`
@@ -93,26 +92,10 @@ type PipelineResourceRef struct {
 // Copied from CrossVersionObjectReference: https://github.com/kubernetes/kubernetes/blob/169df7434155cbbc22f1532cba8e0a9588e29ad8/pkg/apis/autoscaling/types.go#L64
 type PipelineRef struct {
 	// Name of the referent; More info: http://kubernetes.io/docs/user-guide/identifiers#names
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 	// API version of the referent
 	// +optional
 	APIVersion string `json:"apiVersion,omitempty"`
-}
-
-// PipelineTriggerType indicates the mechanism by which this PipelineRun was created.
-type PipelineTriggerType string
-
-const (
-	// PipelineTriggerTypeManual indicates that this PipelineRun was invoked manually by a user.
-	PipelineTriggerTypeManual PipelineTriggerType = "manual"
-)
-
-// PipelineTrigger describes what triggered this Pipeline to run. It could be triggered manually,
-// or it could have been some kind of external event (not yet designed).
-type PipelineTrigger struct {
-	Type PipelineTriggerType `json:"type"`
-	// +optional
-	Name string `json:"name,omitempty"`
 }
 
 // PipelineRunStatus defines the observed state of PipelineRun
@@ -138,8 +121,8 @@ type PipelineRunStatus struct {
 
 // PipelineRunTaskRunStatus contains the name of the PipelineTask for this TaskRun and the TaskRun's Status
 type PipelineRunTaskRunStatus struct {
-	// PipelineTaskName is the name of the PipelineTask
-	PipelineTaskName string `json:"pipelineTaskName"`
+	// PipelineTaskName is the name of the PipelineTask.
+	PipelineTaskName string `json:"pipelineTaskName,omitempty"`
 	// Status is the TaskRunStatus for the corresponding TaskRun
 	// +optional
 	Status *TaskRunStatus `json:"status,omitempty"`
@@ -153,12 +136,13 @@ func (pr *PipelineRunStatus) GetCondition(t apis.ConditionType) *apis.Condition 
 }
 
 // InitializeConditions will set all conditions in pipelineRunCondSet to unknown for the PipelineRun
+// and set the started time to the current time
 func (pr *PipelineRunStatus) InitializeConditions() {
 	if pr.TaskRuns == nil {
 		pr.TaskRuns = make(map[string]*PipelineRunTaskRunStatus)
 	}
 	if pr.StartTime.IsZero() {
-		pr.StartTime = &metav1.Time{time.Now()}
+		pr.StartTime = &metav1.Time{Time: time.Now()}
 	}
 	pipelineRunCondSet.Manage(pr).InitializeConditions()
 }
@@ -174,7 +158,12 @@ func (pr *PipelineRunStatus) SetCondition(newCond *apis.Condition) {
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// PipelineRun is the Schema for the pipelineruns API
+// PipelineRun represents a single execution of a Pipeline. PipelineRuns are how
+// the graph of Tasks declared in a Pipeline are executed; they specify inputs
+// to Pipelines such as parameter values and capture operational aspects of the
+// Tasks execution such as service account and tolerations. Creating a
+// PipelineRun creates TaskRuns for Tasks in the referenced Pipeline.
+//
 // +k8s:openapi-gen=true
 type PipelineRun struct {
 	metav1.TypeMeta `json:",inline"`
@@ -194,14 +183,14 @@ type PipelineRunList struct {
 	metav1.TypeMeta `json:",inline"`
 	// +optional
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []PipelineRun `json:"items"`
+	Items           []PipelineRun `json:"items,omitempty"`
 }
 
 // PipelineTaskRun reports the results of running a step in the Task. Each
 // task has the potential to succeed or fail (based on the exit code)
 // and produces logs.
 type PipelineTaskRun struct {
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 }
 
 // GetTaskRunRef for pipelinerun

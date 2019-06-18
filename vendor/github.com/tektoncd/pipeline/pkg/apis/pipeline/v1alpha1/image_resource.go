@@ -17,16 +17,17 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"fmt"
+	"encoding/json"
 	"strings"
 
+	"golang.org/x/xerrors"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // NewImageResource creates a new ImageResource from a PipelineResource.
 func NewImageResource(r *PipelineResource) (*ImageResource, error) {
 	if r.Spec.Type != PipelineResourceTypeImage {
-		return nil, fmt.Errorf("ImageResource: Cannot create an Image resource from a %s Pipeline Resource", r.Spec.Type)
+		return nil, xerrors.Errorf("ImageResource: Cannot create an Image resource from a %s Pipeline Resource", r.Spec.Type)
 	}
 	ir := &ImageResource{
 		Name: r.Name,
@@ -47,10 +48,11 @@ func NewImageResource(r *PipelineResource) (*ImageResource, error) {
 
 // ImageResource defines an endpoint where artifacts can be stored, such as images.
 type ImageResource struct {
-	Name   string               `json:"name"`
-	Type   PipelineResourceType `json:"type"`
-	URL    string               `json:"url"`
-	Digest string               `json:"digest"`
+	Name           string               `json:"name"`
+	Type           PipelineResourceType `json:"type"`
+	URL            string               `json:"url"`
+	Digest         string               `json:"digest"`
+	OutputImageDir string
 }
 
 // GetName returns the name of the resource
@@ -63,7 +65,7 @@ func (s ImageResource) GetType() PipelineResourceType {
 	return PipelineResourceTypeImage
 }
 
-// GetParams returns the resoruce params
+// GetParams returns the resource params
 func (s ImageResource) GetParams() []Param { return []Param{} }
 
 // Replacements is used for template replacement on an ImageResource inside of a Taskrun.
@@ -76,11 +78,29 @@ func (s *ImageResource) Replacements() map[string]string {
 	}
 }
 
+// GetUploadContainerSpec returns the spec for the upload container
 func (s *ImageResource) GetUploadContainerSpec() ([]corev1.Container, error) {
 	return nil, nil
 }
+
+// GetDownloadContainerSpec returns the spec for the download container
 func (s *ImageResource) GetDownloadContainerSpec() ([]corev1.Container, error) {
 	return nil, nil
 }
+
+// SetDestinationDirectory sets the destination for the resource
 func (s *ImageResource) SetDestinationDirectory(path string) {
+}
+
+// GetOutputImageDir return the path to get the index.json file
+func (s *ImageResource) GetOutputImageDir() string {
+	return s.OutputImageDir
+}
+
+func (s ImageResource) String() string {
+	// the String() func implements the Stringer interface, and therefore
+	// cannot return an error
+	// if the Marshal func gives an error, the returned string will be empty
+	json, _ := json.Marshal(s)
+	return string(json)
 }

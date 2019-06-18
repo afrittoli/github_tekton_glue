@@ -150,14 +150,6 @@
   version = "v0.5.1"
 
 [[projects]]
-  digest = "1:a0cefd27d12712af4b5018dc7046f245e1e3b5760e2e848c30b171b570708f9b"
-  name = "github.com/imdario/mergo"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "7c29201646fa3de8506f701213473dd407f19646"
-  version = "v0.3.7"
-
-[[projects]]
   digest = "1:f5a2051c55d05548d2d4fd23d244027b59fbd943217df8aa3b5e170ac2fd6e1b"
   name = "github.com/json-iterator/go"
   packages = ["."]
@@ -227,16 +219,8 @@
   version = "v2.0.1"
 
 [[projects]]
-  digest = "1:c1b1102241e7f645bc8e0c22ae352e8f0dc6484b6cb4d132fa9f24174e0119e2"
-  name = "github.com/spf13/pflag"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "298182f68c66c05229eb03ac171abe6e309ee79a"
-  version = "v1.0.3"
-
-[[projects]]
-  branch = "master"
-  digest = "1:e19e3a2c6c863c65cb515065b846f84590dcb881d0b745d682c025d8abc9a6f4"
+  branch = "cloud-event-pull-request"
+  digest = "1:756a1065eb0a9c90030dfa63c99cb0a0c92a891e8712449a79f1b0b6ea1240ba"
   name = "github.com/tektoncd/pipeline"
   packages = [
     "pkg/apis/pipeline",
@@ -245,11 +229,13 @@
     "pkg/client/clientset/versioned/scheme",
     "pkg/client/clientset/versioned/typed/pipeline/v1alpha1",
     "pkg/list",
+    "pkg/merge",
     "pkg/names",
     "pkg/templating",
   ]
   pruneopts = "UT"
-  revision = "45e35af119745f8daa678af8c4cff2addfe8e063"
+  revision = "7a60724e53b7c7f870da45340068767520324282"
+  source = "ssh://github.com/afrittoli/pipeline"
 
 [[projects]]
   digest = "1:16c1df68cb7455d2e8c9b4b47f70c9dc38666bc83da1d98b7362c59d5f2f6d08"
@@ -350,6 +336,17 @@
   revision = "9d24e82272b4f38b78bc8cff74fa936d31ccd8ef"
 
 [[projects]]
+  branch = "master"
+  digest = "1:c44a77760372a998be8d4656e8d3c865f68735ec4cad1743a245903a58f64249"
+  name = "golang.org/x/xerrors"
+  packages = [
+    ".",
+    "internal",
+  ]
+  pruneopts = "UT"
+  revision = "3ee3066db522c6628d440a3a91c4abdd7f5ef22f"
+
+[[projects]]
   digest = "1:6eb6e3b6d9fffb62958cf7f7d88dbbe1dd6839436b0802e194c590667a40412a"
   name = "google.golang.org/appengine"
   packages = [
@@ -422,7 +419,7 @@
   version = "kubernetes-1.12.6"
 
 [[projects]]
-  digest = "1:1322546febefba0ffaa8bb8bd82ae3b7afa8a34fd078f8f77788e87752ec4b77"
+  digest = "1:94babe94a374f3367bc9606841879a72591bef89a7370751b0cc3957f0d8c804"
   name = "k8s.io/apimachinery"
   packages = [
     "pkg/api/equality",
@@ -456,17 +453,20 @@
     "pkg/util/framer",
     "pkg/util/intstr",
     "pkg/util/json",
+    "pkg/util/mergepatch",
     "pkg/util/naming",
     "pkg/util/net",
     "pkg/util/rand",
     "pkg/util/runtime",
     "pkg/util/sets",
+    "pkg/util/strategicpatch",
     "pkg/util/validation",
     "pkg/util/validation/field",
     "pkg/util/wait",
     "pkg/util/yaml",
     "pkg/version",
     "pkg/watch",
+    "third_party/forked/golang/json",
     "third_party/forked/golang/reflect",
   ]
   pruneopts = "UT"
@@ -474,7 +474,7 @@
   version = "kubernetes-1.12.6"
 
 [[projects]]
-  digest = "1:95104e058515fc22e185b7f02c233e372831d5bd19362e4500c653a640cf3d3f"
+  digest = "1:9edf5b78b0a533f45a919db7f0e70c31111649f489ae7f4a7a9fdd11962ac411"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
@@ -487,12 +487,8 @@
     "plugin/pkg/client/auth/exec",
     "rest",
     "rest/watch",
-    "tools/auth",
     "tools/cache",
-    "tools/clientcmd",
     "tools/clientcmd/api",
-    "tools/clientcmd/api/latest",
-    "tools/clientcmd/api/v1",
     "tools/metrics",
     "tools/pager",
     "transport",
@@ -500,13 +496,20 @@
     "util/cert",
     "util/connrotation",
     "util/flowcontrol",
-    "util/homedir",
     "util/integer",
     "util/retry",
   ]
   pruneopts = "UT"
   revision = "78295b709ec6fa5be12e35892477a326dea2b5d3"
   version = "kubernetes-1.12.6"
+
+[[projects]]
+  branch = "master"
+  digest = "1:22abb5d4204ab1a0dcc9cda64906a31c43965ff5159e8b9f766c9d2a162dbed5"
+  name = "k8s.io/kube-openapi"
+  packages = ["pkg/util/proto"]
+  pruneopts = "UT"
+  revision = "db7b694dc208eead64d38030265f702db593fcf2"
 
 [solve-meta]
   analyzer-name = "dep"
@@ -518,7 +521,7 @@
     "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1",
     "github.com/tektoncd/pipeline/pkg/client/clientset/versioned",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
-    "k8s.io/client-go/tools/clientcmd",
+    "k8s.io/client-go/rest",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
