@@ -82,13 +82,11 @@ const (
 	apiPipelineName = "dev-test-build-api"
 	fePipelineName = "dev-test-build-frontend"
 	prCommentTaskName = "pr-comment"
+	prStatusUpdateTaskName = "pr-status"
 	pullRequestResourceNameTemplate = "pull-request-resource-%s"
 )
 
 func process(ctx context.Context, event cloudevents.Event) {
-	// Display the event in any case
-	display(ctx, event)
-
 	// Setup an in-cluster k8s client.
 	// I shouldn't really setup a client for every event... but there it is.
 	cfg, err := restclient.InClusterConfig()
@@ -130,6 +128,9 @@ func process(ctx context.Context, event cloudevents.Event) {
 
 			switch ec.Type {
 			case "dev.knative.source.github.pull_request":
+				// Display the event
+				display(ctx, event)
+
 				fmt.Printf("Processing a %s\n", ec.Type)
 
 				// Extract the repo URL
@@ -183,31 +184,55 @@ func process(ctx context.Context, event cloudevents.Event) {
 				fmt.Printf("watch kubectl get all -n %v -l tag=%s\n",
 					targetNamespace, imageTag)
 
-			case "TektonTaskRunSuccessful":
+			case "dev.tekton.event.task.successful":
 				fmt.Println("Processing a Tekton TaskRun event")
+				display(ctx, event)
 
 				// Extract the app and tag from the labels
 				metadata := getMapFromJSON("metadata", eventData)
 				labels := getMapFromJSON("labels", metadata)
 				app := getStringFromJSON("app", labels)
 				tag := getStringFromJSON("tag", labels)
-				// Extract the image digest from the eventData
+				taskRunType := getStringFromJSON("type", labels)
 				status := getMapFromJSON("status", eventData)
-				resourcesResults := getSliceFromJSON("resourcesResult", status)
-				resourcesResult := resourcesResults[0].(map[string]interface{})
-				imageDigest := getStringFromJSON("digest", resourcesResult)
-				// Define the taskRun
-				taskRun, _ := createPRCommentTaskRun(tag, imageDigest, app)
+				var taskRun tektonv1.TaskRun
+				switch taskRunType {
+				case "source-to-image":
+					// Extract the image digest from the eventData
+					resourcesResults := getSliceFromJSON("resourcesResult", status)
+					resourcesResult := resourcesResults[0].(map[string]interface{})
+					imageDigest := getStringFromJSON("digest", resourcesResult)
+					// Define the taskRun
+					taskRun, _ = createPRCommentTaskRun(tag, imageDigest, app)
+				case "tox":
+					taskID := getStringFromJSON("tekton.dev/pipelineTask", labels)
+					conditions := getSliceFromJSON("conditions", status)
+					condition := conditions[0].(map[string]interface{})
+					taskSuccessCondition := getStringFromJSON("status", condition)
+					var taskStatus string
+					var taskStatusDescription string
+					switch taskSuccessCondition {
+					case "True":
+						taskStatus = "success"
+						taskStatusDescription = "Job executed successfully"
+					case "False":
+						taskStatus = "failed"
+						taskStatusDescription = "Job failed"
+					default:
+						taskStatus = "unknown"
+						taskStatusDescription = "Job in unknown status"
+					}
+					taskRun, _ = createPRStatusUpdateTaskRun(tag, taskID, taskStatus, taskStatusDescription, app)
+				}
 				// Trigger the taskRun
 				triggerTaskRun(taskRun, clientset)
-
 			default:
-				fmt.Println("Ignore non-push event")
+				fmt.Println("Ignored non-PR event")
 			}
 		}
 
 	default:
-		fmt.Println("Ignore non-V2 events")
+		fmt.Println("Ignored non-V2 events")
 	}
 }
 
@@ -373,7 +398,7 @@ func createTestPipelineRun(tag, gitResourceName, imageResourceName, cloudEventRe
 					},
 				},
 				{
-					Name: "imageTrigger",
+					Name: "prTrigger",
 					ResourceRef: tektonv1.PipelineResourceRef{
 						Name: cloudEventResourceName,
 					},
@@ -440,6 +465,70 @@ func createPRCommentTaskRun(tag, digest, app string) (tektonv1.TaskRun, string){
 				},
 			},
 			TaskRef: &tektonv1.TaskRef{Name: prCommentTaskName},
+			ServiceAccount: targetServiceAccount,
+			Timeout: &metav1.Duration{Duration: 1 * time.Hour},
+		},
+	}, taskRunName.String()
+}
+
+func createPRStatusUpdateTaskRun(tag, taskID, taskStatus, taskStatusDescription, app string) (tektonv1.TaskRun, string){
+	// Build the API PipelineRun
+	var taskRunName strings.Builder
+	fmt.Fprintf(&taskRunName, "task-run-pr-status-%s-%s", taskID, tag)
+
+	var pullRequestResourceName strings.Builder
+	fmt.Fprintf(&pullRequestResourceName, pullRequestResourceNameTemplate, tag)
+
+	return tektonv1.TaskRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: taskRunName.String(),
+			Namespace: targetNamespace,
+			Labels: map[string]string{
+				"app": "health",
+				"component": app,
+				"tag": tag,
+			},
+		},
+		Spec: tektonv1.TaskRunSpec{
+			Inputs: tektonv1.TaskRunInputs{
+				Resources: []tektonv1.TaskResourceBinding{
+					{
+						Name: "pr",
+						ResourceRef: tektonv1.PipelineResourceRef{
+							Name: pullRequestResourceName.String(),
+						},
+					},
+				},
+				Params: []tektonv1.Param{
+					{
+						Name: "id",
+						Value: taskID,
+					},
+					{
+						Name: "status",
+						Value: taskStatus,
+					},
+					{
+						Name: "description",
+						Value: taskStatusDescription,
+					},
+					{
+						Name: "url",
+						Value: "https://fake.base.url",
+					},
+				},
+			},
+			Outputs: tektonv1.TaskRunOutputs{
+				Resources: []tektonv1.TaskResourceBinding{
+					{
+						Name: "pr",
+						ResourceRef: tektonv1.PipelineResourceRef{
+							Name: pullRequestResourceName.String(),
+						},
+					},
+				},
+			},
+			TaskRef: &tektonv1.TaskRef{Name: prStatusUpdateTaskName},
 			ServiceAccount: targetServiceAccount,
 			Timeout: &metav1.Duration{Duration: 1 * time.Hour},
 		},
