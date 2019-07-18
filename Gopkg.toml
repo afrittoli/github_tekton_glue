@@ -35,7 +35,7 @@
 
 [[constraint]]
   name = "github.com/tektoncd/pipeline"
-  branch = "cloud-event-pull-request"
+  branch = "event_source"
   source = "ssh://github.com/afrittoli/pipeline"
 
 [[override]]
@@ -49,6 +49,11 @@
 [[override]]
   name = "k8s.io/api"
   version = "kubernetes-1.12.6"
+
+[[override]]
+  name = "github.com/knative/pkg"
+  # HEAD as of 2019-06-14 💖
+  revision = "68737b1b4e03d9a888e89ee2a44714a56eefd539"
 
 [prune]
   go-tests = true

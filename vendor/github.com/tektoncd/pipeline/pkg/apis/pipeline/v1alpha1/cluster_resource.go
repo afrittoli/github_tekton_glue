@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Knative Authors.
+Copyright 2019 The Tekton Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -117,9 +117,6 @@ func (s ClusterResource) GetType() PipelineResourceType {
 func (s *ClusterResource) GetURL() string {
 	return s.URL
 }
-
-// GetParams returns the resource params
-func (s ClusterResource) GetParams() []Param { return []Param{} }
 
 // Replacements is used for template replacement on a ClusterResource inside of a Taskrun.
 func (s *ClusterResource) Replacements() map[string]string {

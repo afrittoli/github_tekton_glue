@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Knative Authors
+Copyright 2019 The Tekton Authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -149,7 +149,7 @@ func (ps *PipelineSpec) Validate(ctx context.Context) *apis.FieldError {
 	return nil
 }
 
-func validatePipelineParameterVariables(tasks []PipelineTask, params []PipelineParam) *apis.FieldError {
+func validatePipelineParameterVariables(tasks []PipelineTask, params []ParamSpec) *apis.FieldError {
 	parameterNames := map[string]struct{}{}
 	for _, p := range params {
 		parameterNames[p.Name] = struct{}{}

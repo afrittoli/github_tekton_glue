@@ -25,10 +25,10 @@ import (
 
 // CloudEventResource is an event sink to which events are delivered when a Task has finished
 type CloudEventResource struct {
-	Name           string               `json:"name"`
-  Type           PipelineResourceType `json:"type"`
-	TargetURI      string 							`json:"targetURI"`
-	Owner 				 TaskRun	            `json:"taskRun"`
+	Name      string               `json:"name"`
+	Type      PipelineResourceType `json:"type"`
+	TargetURI string               `json:"targetURI"`
+	Owner     TaskRun              `json:"taskRun"`
 }
 
 // NewCloudEventResource creates a new GCS resource to pass to a Task
@@ -53,9 +53,9 @@ func NewCloudEventResource(r *PipelineResource) (*CloudEventResource, error) {
 		return nil, fmt.Errorf("CloudEventResource: Need URI to be specified in order to create a CloudEvent resource %s", r.Name)
 	}
 	return &CloudEventResource{
-		Name:        r.Name,
-		Type:        r.Spec.Type,
-		TargetURI: 	 targetURI,
+		Name:      r.Name,
+		Type:      r.Spec.Type,
+		TargetURI: targetURI,
 	}, nil
 }
 

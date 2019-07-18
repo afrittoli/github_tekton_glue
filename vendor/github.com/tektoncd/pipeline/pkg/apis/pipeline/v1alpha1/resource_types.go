@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Knative Authors.
+Copyright 2019 The Tekton Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -41,19 +41,20 @@ const (
 	// PipelineResourceTypeCluster indicates that this source is a k8s cluster Image.
 	PipelineResourceTypeCluster PipelineResourceType = "cluster"
 
-	// PipelineResourceTypeCloudEvent indicates that this source is a cloud event URI
-	PipelineResourceTypeCloudEvent PipelineResourceType = "cloudevent"
+	// PipelineResourceTypePullRequest indicates that this source is a SCM Pull Request.
 	PipelineResourceTypePullRequest PipelineResourceType = "pullRequest"
+
+	// PipelineResourceTypeCloudEvent indicates that this source is a cloud event URI
+	PipelineResourceTypeCloudEvent PipelineResourceType = "cloudEvent"
 )
 
 // AllResourceTypes can be used for validation to check if a provided Resource type is one of the known types.
-var AllResourceTypes = []PipelineResourceType{PipelineResourceTypeGit, PipelineResourceTypeStorage, PipelineResourceTypeImage, PipelineResourceTypeCluster, PipelineResourceTypeCloudEvent, PipelineResourceTypePullRequest}
+var AllResourceTypes = []PipelineResourceType{PipelineResourceTypeGit, PipelineResourceTypeStorage, PipelineResourceTypeImage, PipelineResourceTypeCluster, PipelineResourceTypePullRequest, PipelineResourceTypeCloudEvent}
 
 // PipelineResourceInterface interface to be implemented by different PipelineResource types
 type PipelineResourceInterface interface {
 	GetName() string
 	GetType() PipelineResourceType
-	GetParams() []Param
 	Replacements() map[string]string
 	GetDownloadContainerSpec() ([]corev1.Container, error)
 	GetUploadContainerSpec() ([]corev1.Container, error)
@@ -143,10 +144,10 @@ func ResourceFromType(r *PipelineResource) (PipelineResourceInterface, error) {
 		return NewClusterResource(r)
 	case PipelineResourceTypeStorage:
 		return NewStorageResource(r)
-	case PipelineResourceTypeCloudEvent:
-		return NewCloudEventResource(r)
 	case PipelineResourceTypePullRequest:
 		return NewPullRequestResource(r)
+	case PipelineResourceTypeCloudEvent:
+		return NewCloudEventResource(r)
 	}
 	return nil, xerrors.Errorf("%s is an invalid or unimplemented PipelineResource", r.Spec.Type)
 }

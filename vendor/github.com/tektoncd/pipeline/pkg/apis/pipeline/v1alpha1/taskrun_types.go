@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Knative Authors.
+Copyright 2019 The Tekton Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -102,8 +102,6 @@ type TaskResourceBinding struct {
 type TaskRunOutputs struct {
 	// +optional
 	Resources []TaskResourceBinding `json:"resources,omitempty"`
-	// +optional
-	Params []Param `json:"params,omitempty"`
 }
 
 var taskRunCondSet = apis.NewBatchConditionSet()
@@ -171,7 +169,8 @@ func (tr *TaskRunStatus) SetCondition(newCond *apis.Condition) {
 // InitializeCloudEvents initializes the CloudEvents part of the TaskRunStatus
 // from a list of event targets
 func (tr *TaskRunStatus) InitializeCloudEvents(targets []string) {
-	if targets != nil {
+	// len(nil slice) is 0
+	if len(targets) > 0 {
 		initialState := CloudEventDeliveryState{
 			Condition: CloudEventConditionUnknown,
 			RetryCount: 0,

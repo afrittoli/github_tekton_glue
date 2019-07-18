@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Knative Authors.
+Copyright 2019 The Tekton Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-const workspaceDir = "/workspace"
+const WorkspaceDir = "/workspace"
 
 var (
 	gitSource = "git-source"
@@ -86,9 +86,6 @@ func (s *GitResource) GetURL() string {
 	return s.URL
 }
 
-// GetParams returns the resource params
-func (s GitResource) GetParams() []Param { return []Param{} }
-
 // Replacements is used for template replacement on a GitResource inside of a Taskrun.
 func (s *GitResource) Replacements() map[string]string {
 	return map[string]string{
@@ -112,7 +109,7 @@ func (s *GitResource) GetDownloadContainerSpec() ([]corev1.Container, error) {
 		Image:      *gitImage,
 		Command:    []string{"/ko-app/git-init"},
 		Args:       args,
-		WorkingDir: workspaceDir,
+		WorkingDir: WorkspaceDir,
 	}}, nil
 }
 
