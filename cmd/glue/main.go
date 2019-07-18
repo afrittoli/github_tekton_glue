@@ -367,8 +367,18 @@ func provisionPipelineResource(resource tektonv1.PipelineResource, clientset *te
 
 func createTestPipelineRun(tag, gitResourceName, imageResourceName, cloudEventResourceName, app string) (tektonv1.PipelineRun, string){
 	// Build the API PipelineRun
-	var pipelineRunName strings.Builder
+	var (
+		pipelineRunName strings.Builder
+		fullTestImageName strings.Builder
+	)
 	fmt.Fprintf(&pipelineRunName, "pipeline-run-%s-%s", app, tag)
+	params := []tektonv1.Param{{
+		Name:  "imageTag", Value: tag,
+	}}
+	if app == "frontend" {
+		fmt.Fprintf(&fullTestImageName, "%s/%s", imageBaseURL, testImageName)
+		params = append(params, tektonv1.Param{Name: "nodeTestImage", Value: fullTestImageName.String(),})
+	}
 
 	return tektonv1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
@@ -383,9 +393,7 @@ func createTestPipelineRun(tag, gitResourceName, imageResourceName, cloudEventRe
 		Spec: tektonv1.PipelineRunSpec{
 			PipelineRef: tektonv1.PipelineRef{Name: pipelineName[app]},
 			ServiceAccount: targetServiceAccount,
-			Params: []tektonv1.Param{{
-				Name:  "imageTag", Value: tag,
-			},},
+			Params: params,
 			Timeout: &metav1.Duration{Duration: 1 * time.Hour},
 			Resources: []tektonv1.PipelineResourceBinding{
 				{
