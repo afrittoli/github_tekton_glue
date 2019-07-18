@@ -79,12 +79,15 @@ const (
 	targetServiceAccount = "default"
 	imageBaseURL = "us.icr.io/andreaf"
 	testImageName = "health-test-node:latest"
-	apiPipelineName = "dev-test-build-api"
-	fePipelineName = "dev-test-build-frontend"
 	prCommentTaskName = "pr-comment"
 	prStatusUpdateTaskName = "pr-status"
 	pullRequestResourceNameTemplate = "pull-request-resource-%s"
 )
+
+var pipelineName = map[string]string{
+		"api": "dev-test-build-api",
+		"frontend": "dev-test-build-frontend",
+	}
 
 func process(ctx context.Context, event cloudevents.Event) {
 	// Setup an in-cluster k8s client.
@@ -106,10 +109,10 @@ func process(ctx context.Context, event cloudevents.Event) {
 	for _, pipeline := range pipelines.Items {
 		pipelinesMap[pipeline.Name] = pipeline
 	}
-	if _, ok := pipelinesMap[apiPipelineName]; ok == false {
+	if _, ok := pipelinesMap[pipelineName["api"]]; ok == false {
     log.Fatal("API Pipeline not found")
 	}
-	if _, ok := pipelinesMap[fePipelineName]; ok == false {
+	if _, ok := pipelinesMap[pipelineName["frontend"]]; ok == false {
     log.Fatal("FE Pipeline not found")
 	}
 	// Do something if the event is a push
@@ -126,8 +129,8 @@ func process(ctx context.Context, event cloudevents.Event) {
 			}
 			eventData := f.(map[string]interface{})
 
-			switch ec.Type {
-			case "dev.knative.source.github.pull_request":
+			switch {
+			case ec.Type == "dev.knative.source.github.pull_request":
 				// Display the event
 				display(ctx, event)
 
@@ -184,8 +187,7 @@ func process(ctx context.Context, event cloudevents.Event) {
 				fmt.Printf("watch kubectl get all -n %v -l tag=%s\n",
 					targetNamespace, imageTag)
 
-			case "dev.tekton.event.task.successful",
-					 "dev.tekton.event.task.failed":
+			case ec.Type == "dev.tekton.event.task.successful" || ec.Type == "dev.tekton.event.task.failed":
 				fmt.Println("Processing a Tekton TaskRun event")
 				display(ctx, event)
 
@@ -379,7 +381,7 @@ func createTestPipelineRun(tag, gitResourceName, imageResourceName, cloudEventRe
 			},
 		},
 		Spec: tektonv1.PipelineRunSpec{
-			PipelineRef: tektonv1.PipelineRef{Name: apiPipelineName},
+			PipelineRef: tektonv1.PipelineRef{Name: pipelineName[app]},
 			ServiceAccount: targetServiceAccount,
 			Params: []tektonv1.Param{{
 				Name:  "imageTag", Value: tag,
