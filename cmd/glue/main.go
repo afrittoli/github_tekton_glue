@@ -188,7 +188,7 @@ func process(ctx context.Context, event cloudevents.Event) {
 					targetNamespace, imageTag)
 
 			case ec.Type == "dev.tekton.event.task.successful" || ec.Type == "dev.tekton.event.task.failed":
-				fmt.Println("Processing a Tekton TaskRun event")
+				fmt.Printf("Processing a Tekton TaskRun event: %s\n", ec.Type)
 				display(ctx, event)
 
 				// Extract the app and tag from the labels
@@ -198,6 +198,7 @@ func process(ctx context.Context, event cloudevents.Event) {
 				tag := getStringFromJSON("tag", labels)
 				taskRunType := getStringFromJSON("type", labels)
 				status := getMapFromJSON("status", eventData)
+				fmt.Printf("The event is tagged as %s\n", taskRunType)
 				var taskRun tektonv1.TaskRun
 				switch taskRunType {
 				case "source-to-image":
@@ -219,7 +220,7 @@ func process(ctx context.Context, event cloudevents.Event) {
 						taskStatus = "success"
 						taskStatusDescription = "Job executed successfully"
 					case "False":
-						taskStatus = "failed"
+						taskStatus = "failure"
 						taskStatusDescription = "Job failed"
 					default:
 						taskStatus = "unknown"
