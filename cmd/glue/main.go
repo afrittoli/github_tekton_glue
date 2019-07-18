@@ -184,7 +184,8 @@ func process(ctx context.Context, event cloudevents.Event) {
 				fmt.Printf("watch kubectl get all -n %v -l tag=%s\n",
 					targetNamespace, imageTag)
 
-			case "dev.tekton.event.task.successful":
+			case "dev.tekton.event.task.successful",
+					 "dev.tekton.event.task.failed":
 				fmt.Println("Processing a Tekton TaskRun event")
 				display(ctx, event)
 
