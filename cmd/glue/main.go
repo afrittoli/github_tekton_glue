@@ -204,6 +204,10 @@ func process(ctx context.Context, event cloudevents.Event) {
 				case "source-to-image":
 					// Extract the image digest from the eventData
 					resourcesResults := getSliceFromJSON("resourcesResult", status)
+					if resourcesResults == nil {
+						fmt.Println("The image digest was not found.")
+						return
+					}
 					resourcesResult := resourcesResults[0].(map[string]interface{})
 					imageDigest := getStringFromJSON("digest", resourcesResult)
 					// Define the taskRun
